@@ -8,18 +8,19 @@ target/
 .vscode/
 test-results/
 
-# 本地爬虫/抓取数据(体积大,不上传)
+# Python 脚本缓存
+__pycache__/
+*.pyc
+
+# 本地爬虫/抓取数据、构建产物、备份(不上传)
 .scrape/
-
-# 本地构建产物
 .minio-build/
-
-# 数据库与代码备份
 db-backup/
 .code-backup*/
 *.bak
 
 # 系统与编辑器杂项
+.vs/
 Thumbs.db
 Desktop.ini
 .DS_Store

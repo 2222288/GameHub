@@ -11,23 +11,31 @@ const games = (count: number, hue: number, prefix: string): WallGame[] =>
   }));
 
 describe('buildWallColumns', () => {
-  it('gives the dense colour group the central and faster lanes', () => {
+  it('keeps dense colour groups near the centre while speed follows slow-fast-slow-fast-slow', () => {
     const columns = buildWallColumns(
-      [...games(10, 215, 'blue'), ...games(2, 25, 'orange'), ...games(2, 305, 'purple')],
-      5,
+      [...games(18, 215, 'blue'), ...games(4, 25, 'orange'), ...games(4, 305, 'purple')],
+      9,
     );
 
-    expect(columns).toHaveLength(5);
-    expect(columns[2].items.every((game) => game.hue === 215)).toBe(true);
-    expect(columns[2].duration).toBeLessThan(columns[0].duration);
+    expect(columns).toHaveLength(9);
+    expect(columns[4].items.every((game) => game.hue === 215)).toBe(true);
+    expect(columns[0].speedPxPerSecond).toBeLessThan(columns[2].speedPxPerSecond);
+    expect(columns[4].speedPxPerSecond).toBeLessThan(columns[2].speedPxPerSecond);
+    expect(columns[4].speedPxPerSecond).toBeLessThan(columns[6].speedPxPerSecond);
+    expect(columns[8].speedPxPerSecond).toBeLessThan(columns[6].speedPxPerSecond);
     expect(columns.every((column) => column.items.length >= 6)).toBe(true);
+  });
+
+  it('normalizes an even requested count to an odd lane count', () => {
+    const columns = buildWallColumns(games(16, 215, 'blue'), 4);
+    expect(columns).toHaveLength(5);
   });
 
   it('keeps analysed grayscale covers in a neutral lane', () => {
     const neutral = games(4, 0, 'neutral').map((game) => ({ ...game, chroma: 0.01 }));
     const columns = buildWallColumns(
       [...games(8, 215, 'blue'), ...neutral, ...games(2, 25, 'orange')],
-      4,
+      5,
     );
 
     expect(

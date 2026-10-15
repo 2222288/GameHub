@@ -299,6 +299,8 @@ public class GameService {
         return records.stream().map(game -> {
             Category category = categoryById.get(game.getCategoryId());
             return new GameCardVO(game.getId(), game.getName(), game.getEnglishName(), game.getSlug(), game.getSummary(), game.getCoverUrl(), game.getBannerUrl(),
+                    game.getCoverHueOverride() != null ? game.getCoverHueOverride() : game.getCoverHue(),
+                    game.getCoverChroma(), game.getCoverLightness(), game.getCoverAccent(), game.getCoverColorConfidence(),
                     category == null ? null : category.getName(), game.getCurrentVersion(), game.getStatus(), safe(game.getViewCount()),
                     safe(game.getResourceClickCount()), game.getUpdatedAt(), game.getPublishedAt(),
                     tagByGame.getOrDefault(game.getId(), List.of()), platformByGame.getOrDefault(game.getId(), List.of()),

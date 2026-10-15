@@ -33,6 +33,11 @@ export interface GameCard {
   summary: string;
   coverUrl?: string;
   bannerUrl?: string;
+  coverHue?: number;
+  coverChroma?: number;
+  coverLightness?: number;
+  coverAccent?: string;
+  coverColorConfidence?: number;
   category?: string;
   currentVersion?: string;
   status: string;

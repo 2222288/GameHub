@@ -8,7 +8,7 @@ const games: GameCard[] = Array.from({ length: 5 }, (_, index) => ({
   id: index + 1,
   name: `New Game ${index + 1}`,
   slug: `new-${index + 1}`,
-  summary: 'Recently updated',
+  summary: 'Featured game',
   bannerUrl: `/banner-${index + 1}.jpg`,
   coverUrl: `/cover-${index + 1}.jpg`,
   status: 'PUBLISHED',
@@ -21,19 +21,11 @@ const games: GameCard[] = Array.from({ length: 5 }, (_, index) => ({
 }));
 
 beforeEach(() => {
-  vi.stubGlobal(
-    'IntersectionObserver',
-    class {
-      observe() {}
-      disconnect() {}
-    },
-  );
-  vi.stubGlobal('matchMedia', () => ({ matches: true }));
-  Element.prototype.scrollTo = vi.fn();
+  vi.stubGlobal('matchMedia', () => ({ matches: false }));
 });
 afterEach(() => {
   cleanup();
-  vi.useRealTimers();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -46,16 +38,49 @@ const renderCarousel = (items = games) =>
 const dot = (index: number) =>
   screen.getByRole('button', { name: `显示第 ${index} 张封面：New Game ${index}` });
 
-it('exposes one full banner with a matching dot for each game', () => {
+it('exposes one active wide banner with a matching dot for each game', () => {
   const { container } = renderCarousel();
   expect(container.querySelectorAll('.latest-slide')).toHaveLength(games.length);
   expect(screen.getAllByRole('link')).toHaveLength(1);
   expect(screen.getByRole('link').getAttribute('href')).toBe('/games/new-1');
   expect(screen.getByRole('img').getAttribute('src')).toBe('/banner-1.jpg');
   expect(dot(1).getAttribute('aria-current')).toBe('true');
+  expect(container.querySelector('.latest-item-body')).toBeNull();
+  expect(screen.queryByRole('button', { name: /自动切换/ })).toBeNull();
 });
 
-it('wraps previous and next and lets dots and keyboard select individual covers', () => {
+it('removes a banner that fails to load instead of showing an artwork fallback', () => {
+  renderCarousel();
+  const firstImage = screen.getByRole('img', { name: 'New Game 1' });
+  fireEvent.error(firstImage);
+  expect(screen.getByRole('link').getAttribute('href')).toBe('/games/new-2');
+  expect(screen.queryByRole('button', { name: '显示第 1 张封面：New Game 1' })).toBeNull();
+  expect(
+    screen.getByRole('button', { name: '显示第 1 张封面：New Game 2' }).getAttribute('aria-current'),
+  ).toBe('true');
+});
+
+it('keeps the same active game when an earlier preloaded banner fails', () => {
+  const { container } = renderCarousel();
+  fireEvent.click(dot(3));
+  const firstImage = container.querySelector<HTMLImageElement>('img[src="/banner-1.jpg"]')!;
+  fireEvent.error(firstImage);
+  expect(screen.getByRole('link').getAttribute('href')).toBe('/games/new-3');
+  expect(
+    screen.getByRole('button', { name: '显示第 2 张封面：New Game 3' }).getAttribute('aria-current'),
+  ).toBe('true');
+});
+
+it('restores focus to the next usable banner when the focused active image fails', () => {
+  renderCarousel();
+  const link = screen.getByRole('link');
+  act(() => link.focus());
+  fireEvent.error(screen.getByRole('img', { name: 'New Game 1' }));
+  expect(document.activeElement).toBe(screen.getByRole('link'));
+  expect(document.activeElement?.getAttribute('href')).toBe('/games/new-2');
+});
+
+it('wraps previous and next and lets dots and keyboard select individual banners', () => {
   renderCarousel();
   fireEvent.click(screen.getByRole('button', { name: '上一张封面' }));
   expect(dot(5).getAttribute('aria-current')).toBe('true');
@@ -67,6 +92,18 @@ it('wraps previous and next and lets dots and keyboard select individual covers'
   expect(dot(4).getAttribute('aria-current')).toBe('true');
   fireEvent.keyDown(screen.getByRole('region'), { key: 'ArrowLeft' });
   expect(dot(3).getAttribute('aria-current')).toBe('true');
+});
+
+it('supports horizontal touch swipes without automatic rotation', () => {
+  renderCarousel();
+  const region = screen.getByRole('region');
+  fireEvent.touchStart(region, { changedTouches: [{ clientX: 180 }] });
+  fireEvent.touchEnd(region, { changedTouches: [{ clientX: 80 }] });
+  expect(dot(2).getAttribute('aria-current')).toBe('true');
+
+  fireEvent.touchStart(region, { changedTouches: [{ clientX: 80 }] });
+  fireEvent.touchEnd(region, { changedTouches: [{ clientX: 180 }] });
+  expect(dot(1).getAttribute('aria-current')).toBe('true');
 });
 
 it('keeps the selected game in range when refreshed results shrink', () => {
@@ -99,32 +136,4 @@ it('renders one game without unnecessary controls and handles an empty result', 
     </MemoryRouter>,
   );
   expect(screen.queryByRole('region')).toBeNull();
-});
-
-it('pauses auto rotation while hovered, focused or explicitly stopped', () => {
-  vi.useFakeTimers();
-  vi.stubGlobal('matchMedia', () => ({ matches: false }));
-  renderCarousel();
-  fireEvent.mouseEnter(screen.getByRole('region'));
-  vi.advanceTimersByTime(6000);
-  expect(dot(1).getAttribute('aria-current')).toBe('true');
-  fireEvent.focus(screen.getByRole('link'));
-  fireEvent.mouseLeave(screen.getByRole('region'));
-  vi.advanceTimersByTime(6000);
-  expect(dot(1).getAttribute('aria-current')).toBe('true');
-  fireEvent.blur(screen.getByRole('link'), { relatedTarget: document.body });
-  fireEvent.click(screen.getByRole('button', { name: '暂停自动切换' }));
-  vi.advanceTimersByTime(6000);
-  expect(dot(1).getAttribute('aria-current')).toBe('true');
-  fireEvent.click(screen.getByRole('button', { name: '继续自动切换' }));
-  act(() => vi.advanceTimersByTime(5200));
-  expect(dot(2).getAttribute('aria-current')).toBe('true');
-});
-
-it('respects reduced motion without starting an automatic timer', () => {
-  vi.useFakeTimers();
-  renderCarousel();
-  vi.advanceTimersByTime(12000);
-  expect(dot(1).getAttribute('aria-current')).toBe('true');
-  expect(screen.queryByRole('button', { name: '暂停自动切换' })).toBeNull();
 });

@@ -19,6 +19,7 @@ const games: GameCard[] = names.map((name, index) => ({
   slug: index === 0 ? 'starport-ember' : `game-${index + 1}`,
   summary: '探索未知世界，体验属于你的 Adventure。',
   coverUrl: 'placeholder://cover',
+  bannerUrl: `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1500' height='600'%3E%3Crect width='100%25' height='100%25' fill='%23252220'/%3E%3C/svg%3E`,
   category: index % 2 ? '独立游戏' : 'PC 单机',
   currentVersion: '1.2.0',
   status: 'PUBLISHED',
@@ -161,9 +162,15 @@ test('desktop home, catalog filters and search stay usable', async ({ page }) =>
   await expect(page.locator('.hero-screen')).toHaveCSS('height', `${screenHeight}px`);
   const bridge = await page.locator('.hero-bridge').boundingBox();
   expect(bridge!.y).toBeGreaterThanOrEqual(screenHeight - 1);
-  await expect(page.locator('.popular-columns')).toHaveCSS('column-count', '3');
-  await expect(page.getByRole('heading', { name: '最近更新', exact: true })).toBeVisible();
-  const carousel = page.getByRole('region', { name: '最近更新游戏' });
+  expect(
+    await page.locator('.popular-columns').evaluate((node) =>
+      getComputedStyle(node).gridTemplateColumns.split(' ').filter(Boolean).length,
+    ),
+  ).toBe(3);
+  await expect(page.getByRole('heading', { name: '最近更新', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '焦点游戏', exact: true })).toHaveCount(0);
+  const carousel = page.getByRole('region', { name: '焦点游戏' });
+  await expect(carousel).toHaveCount(1);
   await carousel.scrollIntoViewIfNeeded();
   await expect(carousel.getByRole('link', { name: '查看 星港余烬 的详情' })).toBeVisible();
   await expect(carousel.getByRole('link')).toHaveCount(1);
@@ -171,8 +178,9 @@ test('desktop home, catalog filters and search stay usable', async ({ page }) =>
     'aria-current',
     'true',
   );
-  const width = await carousel.locator('.latest-viewport').evaluate((node) => node.clientWidth);
-  await expect(carousel.locator('.latest-slide').first()).toHaveCSS('width', `${width}px`);
+  const stageWidth = (await carousel.locator('.latest-stage').boundingBox())!.width;
+  const slideWidth = (await carousel.locator('.latest-slide').first().boundingBox())!.width;
+  expect(Math.abs(stageWidth - slideWidth)).toBeLessThanOrEqual(1);
   await carousel.getByRole('button', { name: '下一张封面' }).click();
   await expect(carousel.getByRole('button', { name: '显示第 2 张封面：霓虹裂界' })).toHaveAttribute(
     'aria-current',
@@ -213,7 +221,11 @@ test('mobile layout, menu, gallery keyboard and reporting work', async ({ page }
   await expect(page.getByRole('search').getByRole('searchbox')).toBeVisible();
   await expect(page.locator('.hero-screen')).toHaveCSS('height', '844px');
   expect((await page.locator('.hero-bridge').boundingBox())!.y).toBeGreaterThanOrEqual(843);
-  await expect(page.locator('.popular-columns')).toHaveCSS('column-count', '1');
+  expect(
+    await page.locator('.popular-columns').evaluate((node) =>
+      getComputedStyle(node).gridTemplateColumns.split(' ').filter(Boolean).length,
+    ),
+  ).toBe(1);
   await expect(page.getByRole('heading', { name: '按分类探索' })).toHaveCount(0);
   await noOverflow(page);
   await capture(page, 'mobile.png');

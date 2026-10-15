@@ -11,25 +11,32 @@ import { PopularDownloads } from '@/components/PopularDownloads';
 import { SearchBar } from '@/components/SearchBar';
 import type { WallGame } from '@/types';
 
+const isUsableBanner = (url?: string) => Boolean(url && !url.startsWith('placeholder://'));
+
 export default function HomePage() {
-  const latest = useQuery({
-    queryKey: ['public', 'latest'],
-    queryFn: ({ signal }) => publicApi.latest({ signal }),
-  });
   const popular = useQuery({
-    queryKey: ['public', 'games', { page: 1, size: 6, sort: 'resources' }],
-    queryFn: ({ signal }) => publicApi.games({ page: 1, size: 6, sort: 'resources' }, { signal }),
+    queryKey: ['public', 'games', { page: 1, size: 60, sort: 'resources' }],
+    queryFn: ({ signal }) => publicApi.games({ page: 1, size: 60, sort: 'resources' }, { signal }),
   });
   const wall = useQuery({
     queryKey: ['public', 'wall'],
     queryFn: ({ signal }) => publicApi.wall({ signal }),
   });
-  const fallbackWall: WallGame[] = (latest.data || []).map((game) => ({
+
+  const popularGames = popular.data?.items.slice(0, 6) ?? [];
+  const focusGames = (popular.data?.items ?? []).filter((game) => isUsableBanner(game.bannerUrl)).slice(0, 6);
+  const fallbackWall: WallGame[] = popularGames.map((game) => ({
     id: game.id,
     name: game.name,
     slug: game.slug,
     coverUrl: game.coverUrl,
-    hue: Array.from(game.name).reduce((value, char) => value + char.charCodeAt(0), 0) % 360,
+    hue:
+      game.coverHue ??
+      (Array.from(game.name).reduce((value, char) => value + char.charCodeAt(0), 0) % 360),
+    chroma: game.coverChroma,
+    lightness: game.coverLightness,
+    accentColor: game.coverAccent,
+    colorConfidence: game.coverColorConfidence,
   }));
   const wallGames = wall.data?.length ? wall.data : fallbackWall;
 
@@ -54,28 +61,13 @@ export default function HomePage() {
 
       <div className="home-content-shell archive-canvas">
         <div className="home-content container-page">
-          <section id="latest" className="home-showcase-section">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">
-                  <span className="section-number">01</span> RECENTLY UPDATED
-                </p>
-                <h2 className="section-title mt-2">最近更新</h2>
-              </div>
-              <Link className="section-more" to="/games?sort=updated">
-                全部更新 <ArrowUpRight size={16} />
-              </Link>
-            </div>
-            {latest.isPending ? (
-              <div
-                className="latest-loading skeleton"
-                role="status"
-                aria-label="正在加载最近更新"
-              />
-            ) : latest.isError ? (
-              <ErrorState retry={() => void latest.refetch()} />
-            ) : latest.data.length ? (
-              <LatestCarousel games={latest.data} />
+          <section id="latest" className="home-focus-section">
+            {popular.isPending ? (
+              <div className="latest-loading skeleton" role="status" aria-label="正在加载焦点游戏" />
+            ) : popular.isError ? (
+              <ErrorState retry={() => void popular.refetch()} />
+            ) : focusGames.length ? (
+              <LatestCarousel games={focusGames} />
             ) : (
               <EmptyState />
             )}
@@ -85,7 +77,7 @@ export default function HomePage() {
             <div className="section-heading">
               <div>
                 <p className="eyebrow">
-                  <span className="section-number">02</span> MOST DOWNLOADED
+                  <span className="section-number">01</span> MOST DOWNLOADED
                 </p>
                 <h2 className="section-title mt-2">热门下载</h2>
               </div>
@@ -97,8 +89,8 @@ export default function HomePage() {
               <LoadingSkeleton count={6} variant="posters" />
             ) : popular.isError ? (
               <ErrorState retry={() => void popular.refetch()} />
-            ) : popular.data.items.length ? (
-              <PopularDownloads games={popular.data.items} />
+            ) : popularGames.length ? (
+              <PopularDownloads games={popularGames} />
             ) : (
               <EmptyState />
             )}

@@ -6,12 +6,13 @@ import { Artwork } from './Artwork';
 type WallColumn = {
   key: string;
   items: WallGame[];
-  duration: number;
-  reverse: boolean;
+  speedPxPerSecond: number;
   edge: number;
 };
 
 const NEUTRAL_BUCKET = 12;
+const MIN_SPEED = 22;
+const MAX_SPEED = 52;
 
 const bucketFor = (game: WallGame) =>
   game.chroma != null && game.chroma < 0.025
@@ -23,12 +24,35 @@ const circularDistance = (a: number, b: number) => {
   return Math.min(Math.abs(a - b), 12 - Math.abs(a - b));
 };
 
+const stableJitter = (value: string) => {
+  let hash = 2166136261;
+  for (const char of value) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return ((hash >>> 0) % 1001) / 1000 - 0.5;
+};
+
+const speedForColumn = (index: number, count: number, key: string) => {
+  const x = count <= 1 ? 0 : index / (count - 1);
+  const wave = Math.pow(Math.abs(Math.sin(2 * Math.PI * x)), 1.3);
+  const base = MIN_SPEED + (MAX_SPEED - MIN_SPEED) * wave;
+  const jitter = stableJitter(key) * 0.08; // stable ±4%, enough to avoid a mirrored/mechanical rhythm
+  return Math.round(base * (1 + jitter) * 10) / 10;
+};
+
+const normalizeColumnCount = (requestedColumns: number) => {
+  const clamped = Math.max(5, Math.min(Math.round(requestedColumns), 11));
+  if (clamped % 2 === 1) return clamped;
+  return clamped === 11 ? 11 : clamped + 1;
+};
+
 export function buildWallColumns(
   games: WallGame[],
   requestedColumns: number,
   minimumItems = 6,
 ): WallColumn[] {
-  const columnCount = Math.max(3, Math.min(requestedColumns, 11));
+  const columnCount = normalizeColumnCount(requestedColumns);
   if (!games.length) return [];
 
   let groups = Array.from({ length: 13 }, (_, bucket) => ({
@@ -96,20 +120,17 @@ export function buildWallColumns(
   return ordered.map((lane, index) => {
     const middle = (ordered.length - 1) / 2;
     const edge = middle ? Math.abs(index - middle) / middle : 0;
-    const waveBucket = lane.bucket === NEUTRAL_BUCKET ? 6 : lane.bucket;
-    const wave = (Math.sin((waveBucket / 12) * Math.PI * 4) + 1) * 2.2;
+    const key = `${lane.bucket}-${lane.laneIndex}-${index}`;
     return {
-      key: `${lane.bucket}-${lane.laneIndex}-${index}`,
+      key,
       items: lane.items,
-      duration: Math.round(56 - lane.density * 24 + edge * 10 + wave),
-      reverse: index % 2 === 1,
+      speedPxPerSecond: speedForColumn(index, ordered.length, key),
       edge,
     };
   });
 }
 
 function columnCount(width: number) {
-  if (width < 520) return 4;
   if (width < 760) return 5;
   if (width < 1100) return 7;
   if (width < 1500) return 9;
@@ -117,10 +138,8 @@ function columnCount(width: number) {
 }
 
 /**
- * The wall is animated by CSS so the duplicated sets meet without a seam.
- * Only a hovered / keyboard-focused lane changes speed. Adjusting the CSS
- * animation's playback rate preserves its current position while it eases to
- * a stop, and likewise avoids a jump when it starts moving again.
+ * Every lane moves downward. The animation duration is derived from the measured height of one
+ * repeated set, so speed remains a real on-screen px/s value even when the viewport or images resize.
  */
 function WallLane({
   column,
@@ -134,6 +153,26 @@ function WallLane({
   onFocus: (active: boolean) => void;
 }) {
   const track = useRef<HTMLDivElement>(null);
+  const firstSet = useRef<HTMLDivElement>(null);
+  const [loopHeight, setLoopHeight] = useState(0);
+  const [focusableCopy, setFocusableCopy] = useState(0);
+
+  useLayoutEffect(() => {
+    const node = firstSet.current;
+    if (!node) return;
+    const measure = () => {
+      const height = node.getBoundingClientRect().height || node.scrollHeight;
+      if (height > 0) setLoopHeight((previous) => (Math.abs(previous - height) < 0.5 ? previous : height));
+    };
+    measure();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(node);
+    window.addEventListener('resize', measure, { passive: true });
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [column.items]);
 
   useEffect(() => {
     const node = track.current;
@@ -153,7 +192,6 @@ function WallLane({
     const from = animation.playbackRate;
     if (Math.abs(from - target) < 0.001) return;
 
-    // WAAPI changes the rate without restarting the underlying CSS animation.
     if (animation.playState === 'paused') {
       animation.updatePlaybackRate(Math.max(from, 0.001));
       animation.play();
@@ -168,20 +206,53 @@ function WallLane({
         ? 1 - Math.pow(1 - progress, 3)
         : progress * progress * (3 - 2 * progress);
       animation.updatePlaybackRate(Math.max(0, from + (target - from) * ease));
-      if (progress < 1) {
-        frame = window.requestAnimationFrame(tick);
-      } else if (selected) {
-        animation.pause();
-      }
+      if (progress < 1) frame = window.requestAnimationFrame(tick);
+      else if (selected) animation.pause();
     };
     frame = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(frame);
   }, [selected]);
 
+  const durationSeconds = loopHeight > 0 ? loopHeight / column.speedPxPerSecond : 900 / column.speedPxPerSecond;
+
+  const visibleRatio = (node: HTMLElement) => {
+    const lane = node.closest<HTMLElement>('.wall-column');
+    if (!lane) return 1;
+    const laneRect = lane.getBoundingClientRect();
+    const itemRect = node.getBoundingClientRect();
+    const visible = Math.max(
+      0,
+      Math.min(laneRect.bottom, itemRect.bottom) - Math.max(laneRect.top, itemRect.top),
+    );
+    return itemRect.height > 0 ? visible / itemRect.height : 1;
+  };
+
+  const keepFocusedCoverVisible = (copy: number, index: number, node: HTMLAnchorElement) => {
+    const alternateCopy = copy === 0 ? 1 : 0;
+    const alternate = track.current?.querySelector<HTMLAnchorElement>(
+      `[data-wall-copy="${alternateCopy}"][data-wall-index="${index}"]`,
+    );
+    if (!alternate || visibleRatio(node) >= 0.55 || visibleRatio(alternate) <= visibleRatio(node)) return;
+
+    // The two sets are visual duplicates used for the seamless loop. If keyboard focus lands on the
+    // copy currently clipped outside the lane, expose and focus its visible twin before freezing the lane.
+    const sets = track.current?.querySelectorAll<HTMLElement>('.wall-column-set');
+    sets?.forEach((set, setIndex) => {
+      if (setIndex === alternateCopy) set.removeAttribute('aria-hidden');
+      else set.setAttribute('aria-hidden', 'true');
+      set.querySelectorAll<HTMLAnchorElement>('.wall-cover').forEach((link) => {
+        link.tabIndex = setIndex === alternateCopy ? 0 : -1;
+      });
+    });
+    setFocusableCopy(alternateCopy);
+    alternate.focus({ preventScroll: true });
+  };
+
   return (
     <div
       className="wall-column"
       data-selected={selected || undefined}
+      data-speed={column.speedPxPerSecond}
       onPointerEnter={() => onHover(true)}
       onPointerLeave={() => onHover(false)}
       onFocusCapture={() => onFocus(true)}
@@ -191,18 +262,26 @@ function WallLane({
     >
       <div
         ref={track}
-        className={`wall-track ${column.reverse ? 'wall-track-reverse' : ''}`}
-        style={{ '--wall-duration': `${column.duration}s` } as CSSProperties}
+        className="wall-track"
+        style={{ '--wall-duration': `${durationSeconds}s` } as CSSProperties}
       >
         {[0, 1].map((copy) => (
-          <div className="wall-column-set" aria-hidden={copy === 1} key={copy}>
+          <div
+            ref={copy === 0 ? firstSet : undefined}
+            className="wall-column-set"
+            aria-hidden={copy !== focusableCopy}
+            key={copy}
+          >
             {column.items.map((game, index) => (
               <Link
                 className="wall-cover"
                 to={`/games/${encodeURIComponent(game.slug)}`}
                 aria-label={`查看 ${game.name}`}
+                data-wall-copy={copy}
+                data-wall-index={index}
                 key={`${copy}-${game.id}-${index}`}
-                tabIndex={copy === 1 ? -1 : 0}
+                tabIndex={copy === focusableCopy ? 0 : -1}
+                onFocus={(event) => keepFocusedCoverVisible(copy, index, event.currentTarget)}
               >
                 <Artwork
                   url={game.coverUrl}
@@ -260,14 +339,11 @@ export function CoverWall({ games }: { games: WallGame[] }) {
     const node = root.current;
     if (!node) return;
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        setVisible(entry.isIntersecting && !document.hidden);
-      },
+      ([entry]) => setVisible(entry.isIntersecting && !document.hidden),
       { threshold: 0.02 },
     );
     observer.observe(node);
-    const visibility = () =>
-      setVisible(!document.hidden && node.getBoundingClientRect().bottom > 0);
+    const visibility = () => setVisible(!document.hidden && node.getBoundingClientRect().bottom > 0);
     document.addEventListener('visibilitychange', visibility);
     return () => {
       observer.disconnect();

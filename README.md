@@ -155,4 +155,3 @@ python scripts/resync_flysheep_tones.py
 - 离线校验：`render_wall_preview.py` 直接读 `/api/v1/games/wall` 并复刻 `buildWallColumns()` 的分列算法出图，不需要浏览器。
 
 - 详情页参考该站结构重绘：深色信息带按封面 `coverAccent` 染色、2:3 封面、面包屑、游戏介绍 / 截图 / 配置需求 / 下载资源分区，右侧粘性信息栏含快速选路，底部按分类推荐同类游戏。
-
