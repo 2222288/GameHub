@@ -1,0 +1,1 @@
+package com.gamehub.resource.entity; public enum ReportReason { LINK_BROKEN, PASSWORD_WRONG, CONTENT_WRONG, OTHER }

@@ -1,0 +1,1 @@
+package com.gamehub.resource.vo; public record ResourceRedirectVO(String url) {}

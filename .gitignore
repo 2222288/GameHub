@@ -1,0 +1,25 @@
+node_modules/
+dist/
+target/
+.env
+.env.local
+*.log
+.idea/
+.vscode/
+test-results/
+
+# 本地爬虫/抓取数据(体积大,不上传)
+.scrape/
+
+# 本地构建产物
+.minio-build/
+
+# 数据库与代码备份
+db-backup/
+.code-backup*/
+*.bak
+
+# 系统与编辑器杂项
+Thumbs.db
+Desktop.ini
+.DS_Store

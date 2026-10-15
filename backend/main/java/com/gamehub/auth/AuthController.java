@@ -1,0 +1,2 @@
+package com.gamehub.auth;import com.gamehub.auth.dto.LoginRequest;import com.gamehub.auth.vo.LoginResponse;import com.gamehub.common.ApiResponse;import jakarta.validation.Valid;import org.springframework.web.bind.annotation.*;
+@RestController @RequestMapping("/api/v1/auth") public class AuthController {private final AuthService service;public AuthController(AuthService service){this.service=service;}@PostMapping("/login") public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest r){return ApiResponse.ok(service.login(r));}}

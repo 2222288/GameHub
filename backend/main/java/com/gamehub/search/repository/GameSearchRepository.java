@@ -1,0 +1,1 @@
+package com.gamehub.search.repository;import com.gamehub.search.entity.GameSearchDocument;import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;public interface GameSearchRepository extends ElasticsearchRepository<GameSearchDocument,Long>{}

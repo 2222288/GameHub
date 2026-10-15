@@ -1,0 +1,2 @@
+package com.gamehub.infrastructure;import io.minio.MinioClient;import org.springframework.beans.factory.annotation.Value;import org.springframework.context.annotation.*;
+@Configuration public class MinioConfig {@Bean MinioClient minioClient(@Value("${gamehub.minio.endpoint}")String endpoint,@Value("${gamehub.minio.access-key}")String key,@Value("${gamehub.minio.secret-key}")String secret){return MinioClient.builder().endpoint(endpoint).credentials(key,secret).build();}}

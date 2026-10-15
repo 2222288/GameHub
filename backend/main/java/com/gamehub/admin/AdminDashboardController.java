@@ -1,0 +1,2 @@
+package com.gamehub.admin;import com.gamehub.common.ApiResponse;import com.gamehub.statistics.StatisticsService;import com.gamehub.statistics.vo.DashboardVO;import org.springframework.web.bind.annotation.*;
+@RestController @RequestMapping("/api/v1/admin/dashboard") public class AdminDashboardController {private final StatisticsService service;public AdminDashboardController(StatisticsService service){this.service=service;}@GetMapping public ApiResponse<DashboardVO>dashboard(){return ApiResponse.ok(service.dashboard());}}

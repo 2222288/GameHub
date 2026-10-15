@@ -1,0 +1,1 @@
+package com.gamehub.auth.vo; public record LoginResponse(String token, String tokenType, long expiresIn) {}

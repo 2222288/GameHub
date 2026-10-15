@@ -1,0 +1,4 @@
+package com.gamehub.auth;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;import com.gamehub.admin.entity.AdminUser;import com.gamehub.admin.repository.AdminUserRepository;import org.springframework.security.core.userdetails.*;import org.springframework.stereotype.Service;
+@Service public class AdminUserDetailsService implements UserDetailsService { private final AdminUserRepository repo; public AdminUserDetailsService(AdminUserRepository repo){this.repo=repo;}
+ public UserDetails loadUserByUsername(String username){AdminUser u=repo.selectOne(new LambdaQueryWrapper<AdminUser>().eq(AdminUser::getUsername,username)); if(u==null||!Boolean.TRUE.equals(u.getEnabled())) throw new UsernameNotFoundException("admin not found"); return User.withUsername(u.getUsername()).password(u.getPasswordHash()).roles("ADMIN").build();}}

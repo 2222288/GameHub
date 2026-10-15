@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1100" viewBox="0 0 1440 1100" fill="none">
+  <defs>
+    <pattern id="grid" width="80" height="80" patternUnits="userSpaceOnUse">
+      <path d="M80 0H0V80" stroke="#686c5c" stroke-opacity=".055"/>
+    </pattern>
+    <pattern id="markers" width="240" height="240" patternUnits="userSpaceOnUse">
+      <path d="M76 80h8m-4-4v8" stroke="#6a705a" stroke-opacity=".16"/>
+      <circle cx="200" cy="200" r="1" fill="#6a705a" fill-opacity=".11"/>
+    </pattern>
+  </defs>
+  <path fill="url(#grid)" d="M0 0h1440v1100H0z"/>
+  <path fill="url(#markers)" d="M0 0h1440v1100H0z"/>
+  <g stroke="#b5b8a2" stroke-opacity=".22" stroke-width="1.2">
+    <path d="M1440 94c-75-38-169-32-230 10s-83 94-64 157 11 106-35 145-70 77-53 129 93 83 168 64 135-11 214 36"/>
+    <path d="M1440 126c-71-35-151-27-204 10s-66 80-49 129 9 98-37 138-65 69-51 110 77 62 138 47 134-9 203 32"/>
+    <path d="M1440 158c-61-28-136-21-177 10s-50 65-36 104 6 91-35 126-59 61-47 93 60 45 112 34 122-5 183 27"/>
+    <path d="M0 692c81-41 157-29 203 19s45 111 101 138 142-2 175 41-5 98-66 125-154 18-193 85"/>
+    <path d="M0 726c69-35 133-23 172 17s41 108 102 135 137-4 162 30-13 73-64 96-144 24-175 96"/>
+    <path d="M0 760c57-26 110-18 141 17s42 103 108 129 128-5 146 19-20 50-65 72-131 27-157 103"/>
+  </g>
+</svg>

@@ -1,0 +1,1 @@
+package com.gamehub.statistics.vo; import java.util.List;import java.util.Map; public record DashboardVO(long games,long published,long draft,long offline,long links,long brokenLinks,long todayViews,long todayClicks,long todaySearches,List<Map<String,Object>> recentGames,List<Map<String,Object>> reports,List<Map<String,Object>> hotSearches) {}

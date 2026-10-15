@@ -1,0 +1,3 @@
+package com.gamehub.auth;
+import com.gamehub.auth.dto.LoginRequest;import com.gamehub.auth.vo.LoginResponse;import org.springframework.security.authentication.*;import org.springframework.stereotype.Service;
+@Service public class AuthService {private final AuthenticationManager auth;private final JwtService jwt;public AuthService(AuthenticationManager auth,JwtService jwt){this.auth=auth;this.jwt=jwt;}public LoginResponse login(LoginRequest r){auth.authenticate(new UsernamePasswordAuthenticationToken(r.username(),r.password()));return new LoginResponse(jwt.generate(r.username()),"Bearer",jwt.getExpiration());}}

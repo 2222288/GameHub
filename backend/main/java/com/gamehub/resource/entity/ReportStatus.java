@@ -1,0 +1,1 @@
+package com.gamehub.resource.entity; public enum ReportStatus { PENDING, PROCESSED }
